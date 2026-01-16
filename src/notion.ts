@@ -3,6 +3,17 @@ import type { BlockObjectRequest } from '@notionhq/client/build/src/api-endpoint
 import { markdownToBlocks } from '@tryfabric/martian';
 
 /**
+ * Chunks an array into smaller arrays of specified size
+ */
+function chunkArray<T>(array: T[], chunkSize: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+/**
  * Class for managing Notion client state and methods needed for the action.
  */
 export class NotionApi {
@@ -40,18 +51,41 @@ export class NotionApi {
 
   /**
    * Convert markdown to the notion block data format and append it to an existing block.
+   * FIXED: Now handles >100 blocks by chunking into batches of 100 (Notion API limit)
    * @param blockId Block which the markdown elements will be appended to.
    * @param md Markdown as string.
+   * @param preamble Optional blocks to prepend before markdown content.
    */
   public async appendMarkdown(
     blockId: string,
     md: string,
     preamble: BlockObjectRequest[] = []
   ) {
-    await this.client.blocks.children.append({
-      block_id: blockId,
-      children: [...preamble, ...markdownToBlocks(md)],
-    });
+    // Convert markdown to blocks
+    const mdBlocks = markdownToBlocks(md);
+    const allBlocks = [...preamble, ...mdBlocks];
+
+    console.log(`Total blocks to append: ${allBlocks.length}`);
+
+    // FIX: Chunk blocks into batches of 100 (Notion API limit)
+    const chunks = chunkArray(allBlocks, 100);
+
+    if (chunks.length > 1) {
+      console.log(`Splitting into ${chunks.length} chunks of max 100 blocks each`);
+    }
+
+    // Append chunks sequentially
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`Appending chunk ${i + 1}/${chunks.length} (${chunk.length} blocks)...`);
+
+      await this.client.blocks.children.append({
+        block_id: blockId,
+        children: chunk,
+      });
+
+      console.log(`✅ Successfully appended chunk ${i + 1}/${chunks.length}`);
+    }
   }
 
   /**
