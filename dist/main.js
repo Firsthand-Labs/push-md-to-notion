@@ -43624,7 +43624,7 @@ var import_gray_matter = __toESM(require_gray_matter());
 // src/git.ts
 var import_node_child_process = require("node:child_process");
 function getChangedMdFiles() {
-  const gitOutput = (0, import_node_child_process.execSync)("git show --name-only --pretty=format:", {
+  const gitOutput = (0, import_node_child_process.execSync)("git show --name-only --diff-filter=d --pretty=format:", {
     encoding: "utf-8"
   });
   return gitOutput.trim().split("\n").filter((fn) => fn.endsWith(".md"));
